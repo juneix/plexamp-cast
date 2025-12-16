@@ -6,13 +6,7 @@ docker-compose 配置文件
 ```
 services:
   plexamp-cast:
-    container_name: plexamp-cast
-    # 如果需要自动构建，取消下面 build 的注释
-    build: 
-      context: .
-      # args:
-      #   PLEXAMP_VERSION: 4.12.4
-    image: plexamp-cast:latest
+    image: ghcr.io/juneix/plexamp-cast:latest
     network_mode: host
     restart: unless-stopped
     privileged: true 
