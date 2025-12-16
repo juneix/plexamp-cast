@@ -1,0 +1,64 @@
+# 工作流名称
+name: 云端构建并推送 Docker 镜像到 GHCR
+
+# 触发条件：推送到 main 分支、打标签时执行；也可手动触发
+on:
+  push:
+    branches: [ main ]          # 推送到主分支时触发
+    tags: [ 'v*' ]              # 打版本标签（如v1.0.0）时触发
+  workflow_dispatch:            # 允许手动在 GitHub 页面触发
+
+# 作业定义：在 Ubuntu 最新版虚拟机中运行
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read            # 读取仓库代码
+      packages: write           # 向 GHCR 推送镜像（必须授权）
+
+    steps:
+      # 步骤1：检出仓库代码（获取 Dockerfile 等文件）
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      # 步骤2：设置 Docker Buildx（增强构建能力，支持多平台、缓存）
+      - name: 配置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 步骤3：登录 GitHub Container Registry（GHCR）
+      - name: 登录 GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}          # 自动填充你的 GitHub 用户名
+          password: ${{ secrets.GITHUB_TOKEN }} # GitHub 自动生成的令牌（无需手动创建）
+
+      # 步骤4：构建并推送 Docker 镜像（核心步骤）
+      - name: 构建并推送镜像
+        uses: docker/build-push-action@v5
+        with:
+          context: .                            # 构建上下文：仓库根目录（Dockerfile 所在位置）
+          push: true                            # 推送到 GHCR（false 仅构建不推送）
+          # 镜像标签：适配不同场景（可自定义）
+          tags: |
+            # 基础标签：用户名/仓库名:latest（替换为你的实际信息）
+            ghcr.io/${{ github.repository_owner }}/你的镜像名:latest
+            # 版本标签：打 tag 时用 tag 名，否则用提交 SHA
+            ghcr.io/${{ github.repository_owner }}/你的镜像名:${{ github.ref_name || github.sha }}
+          # 可选：开启构建缓存（加速下次构建）
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # 可选：多平台构建（如同时支持 amd64/arm64，按需开启）
+          # platforms: linux/amd64,linux/arm64/v8
+
+      # 可选步骤：验证构建的镜像（用 docker-compose 测试，按需开启）
+      - name: 验证镜像（通过 docker-compose）
+        if: success()  # 仅前面步骤成功时执行
+        run: |
+          # 替换 compose 中的镜像名为刚推送的 GHCR 镜像
+          sed -i 's|image: .*|image: ghcr.io/${{ github.repository_owner }}/你的镜像名:latest|g' docker-compose.yml
+          # 启动 compose 并验证（仅测试，启动后可停止）
+          docker-compose up -d
+          sleep 10
+          docker-compose ps
+          docker-compose down
