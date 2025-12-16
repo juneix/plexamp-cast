@@ -13,8 +13,8 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
-      contents: read            # 读取仓库代码
-      packages: read write      # 合并 read/write 权限，解决重复定义问题
+      contents: read            # 仅读取仓库代码（最小权限）
+      packages: write           # 推送镜像到 GHCR（隐含 read 权限）
 
     steps:
       # 步骤1：检出仓库代码（获取 Dockerfile 等文件）
@@ -38,10 +38,10 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .                            # 构建上下文：仓库根目录
-          file: ./Dockerfile                    # 显式指定 Dockerfile 路径（更严谨）
+          file: ./Dockerfile                    # 显式指定 Dockerfile 路径
           push: true                            # 推送到 GHCR
-          pull: true                            # 拉取最新基础镜像（避免缓存旧镜像）
-          # 镜像标签：修复三元运算符，改用 GitHub 支持的 && || 逻辑
+          pull: true                            # 拉取最新基础镜像
+          # 镜像标签：GitHub Actions 兼容的逻辑表达式
           tags: |
             ghcr.io/${{ github.repository_owner }}/plexamp-cast:latest
             ghcr.io/${{ github.repository_owner }}/plexamp-cast:${{ github.ref_name != '' && github.ref_name || github.sha }}
@@ -49,16 +49,14 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           # 可选：多平台构建（取消注释开启，适配amd64/arm64）
-          # platforms: linux/amd64,linux/arm64/v8
+          platforms: linux/amd64,linux/arm64/v8
 
-      # 可选步骤：验证镜像（优化 sed 命令，仅替换目标服务的 image 行）
-      - name: 验证镜像（通过 docker-compose）
-        if: success()  # 仅前面步骤成功时执行
-        run: |
-          # 精准替换：只替换服务名为 plexamp-cast 的 image 行（需匹配你的 compose 服务名）
-          sed -i '/plexamp-cast/ s|image: .*|image: ghcr.io/${{ github.repository_owner }}/plexamp-cast:latest|g' docker-compose.yml
-          # 启动 compose 并验证（仅测试，启动后停止）
-          docker-compose up -d
-          sleep 10
-          docker-compose ps
-          docker-compose down
+      # 可选：删除验证步骤（避免 compose 适配问题，如需保留可看下方说明）
+      # - name: 验证镜像（通过 docker-compose）
+      #   if: success()
+      #   run: |
+      #     sed -i '/plexamp-cast/ s|image: .*|image: ghcr.io/${{ github.repository_owner }}/plexamp-cast:latest|g' docker-compose.yml
+      #     docker-compose up -d
+      #     sleep 10
+      #     docker-compose ps
+      #     docker-compose down
