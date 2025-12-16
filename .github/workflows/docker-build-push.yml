@@ -14,7 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read            # 读取仓库代码
-      packages: write           # 向 GHCR 推送镜像（必须授权）
+      packages: write           # 推送镜像到 GHCR
+      packages: read            # 补充读权限，避免兼容问题
 
     steps:
       # 步骤1：检出仓库代码（获取 Dockerfile 等文件）
@@ -31,34 +32,33 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}          # 自动填充你的 GitHub 用户名
-          password: ${{ secrets.GITHUB_TOKEN }} # GitHub 自动生成的令牌（无需手动创建）
+          password: ${{ secrets.GITHUB_TOKEN }} # GitHub 自动生成的令牌
 
       # 步骤4：构建并推送 Docker 镜像（核心步骤）
       - name: 构建并推送镜像
         uses: docker/build-push-action@v5
         with:
-          context: .                            # 构建上下文：仓库根目录（Dockerfile 所在位置）
-          push: true                            # 推送到 GHCR（false 仅构建不推送）
-          # 镜像标签：适配不同场景（可自定义）
+          context: .                            # 构建上下文：仓库根目录
+          file: ./Dockerfile                    # 显式指定 Dockerfile 路径（更严谨）
+          push: true                            # 推送到 GHCR
+          pull: true                            # 拉取最新基础镜像（避免缓存旧基础镜像）
+          # 镜像标签：修复 || 语法错误
           tags: |
-            # 基础标签：用户名/仓库名:latest（替换为你的实际信息）
             ghcr.io/${{ github.repository_owner }}/plexamp-cast:latest
-            # 版本标签：打 tag 时用 tag 名，否则用提交 SHA
-            # 正确写法：如果 ref_name 有值（分支/标签名）则用它，否则用 commit SHA
             ghcr.io/${{ github.repository_owner }}/plexamp-cast:${{ github.ref_name != '' ? github.ref_name : github.sha }}
-          # 可选：开启构建缓存（加速下次构建）
+          # 开启构建缓存（加速下次构建）
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          # 可选：多平台构建（如同时支持 amd64/arm64，按需开启）
+          # 可选：多平台构建（取消注释开启，适配amd64/arm64）
           # platforms: linux/amd64,linux/arm64/v8
 
-      # 可选步骤：验证构建的镜像（用 docker-compose 测试，按需开启）
+      # 可选步骤：验证镜像（优化 sed 命令，仅替换目标服务的 image 行）
       - name: 验证镜像（通过 docker-compose）
         if: success()  # 仅前面步骤成功时执行
         run: |
-          # 替换 compose 中的镜像名为刚推送的 GHCR 镜像
-          sed -i 's|image: .*|image: ghcr.io/${{ github.repository_owner }}/plexamp-cast:latest|g' docker-compose.yml
-          # 启动 compose 并验证（仅测试，启动后可停止）
+          # 精准替换：只替换服务名为 plexamp-cast 的 image 行（需匹配你的 compose 服务名）
+          sed -i '/plexamp-cast/ s|image: .*|image: ghcr.io/${{ github.repository_owner }}/plexamp-cast:latest|g' docker-compose.yml
+          # 启动 compose 并验证（仅测试，启动后停止）
           docker-compose up -d
           sleep 10
           docker-compose ps
