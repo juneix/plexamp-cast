@@ -44,7 +44,8 @@ jobs:
             # 基础标签：用户名/仓库名:latest（替换为你的实际信息）
             ghcr.io/${{ github.repository_owner }}/plexamp-cast:latest
             # 版本标签：打 tag 时用 tag 名，否则用提交 SHA
-            ghcr.io/${{ github.repository_owner }}/plexamp-cast:${{ github.ref_name || github.sha }}
+            # 正确写法：如果 ref_name 有值（分支/标签名）则用它，否则用 commit SHA
+            ghcr.io/${{ github.repository_owner }}/plexamp-cast:${{ github.ref_name != '' ? github.ref_name : github.sha }}
           # 可选：开启构建缓存（加速下次构建）
           cache-from: type=gha
           cache-to: type=gha,mode=max
