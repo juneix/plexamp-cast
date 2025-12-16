@@ -14,8 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read            # 读取仓库代码
-      packages: write           # 推送镜像到 GHCR
-      packages: read            # 补充读权限，避免兼容问题
+      packages: read write      # 合并 read/write 权限，解决重复定义问题
 
     steps:
       # 步骤1：检出仓库代码（获取 Dockerfile 等文件）
@@ -41,11 +40,11 @@ jobs:
           context: .                            # 构建上下文：仓库根目录
           file: ./Dockerfile                    # 显式指定 Dockerfile 路径（更严谨）
           push: true                            # 推送到 GHCR
-          pull: true                            # 拉取最新基础镜像（避免缓存旧基础镜像）
-          # 镜像标签：修复 || 语法错误
+          pull: true                            # 拉取最新基础镜像（避免缓存旧镜像）
+          # 镜像标签：修复三元运算符，改用 GitHub 支持的 && || 逻辑
           tags: |
             ghcr.io/${{ github.repository_owner }}/plexamp-cast:latest
-            ghcr.io/${{ github.repository_owner }}/plexamp-cast:${{ github.ref_name != '' ? github.ref_name : github.sha }}
+            ghcr.io/${{ github.repository_owner }}/plexamp-cast:${{ github.ref_name != '' && github.ref_name || github.sha }}
           # 开启构建缓存（加速下次构建）
           cache-from: type=gha
           cache-to: type=gha,mode=max
