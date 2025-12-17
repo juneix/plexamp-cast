@@ -1,82 +1,53 @@
 #!/bin/bash
 
-# --- 1. 环境准备 ---
-echo "--- Starting Plexamp-Cast Container ---"
+export PULSE_SOCKET=/tmp/pulseaudio.socket
+export PULSE_SERVER=unix:$PULSE_SOCKET
 
-# 定义命名管道路径
-PIPE_PATH="/tmp/snapfifo"
+# 清理残留
+rm -rf /var/run/pulse /run/pulse /root/.config/pulse $PULSE_SOCKET
 
-# 如果没有管道文件，则创建
-if [ ! -p "$PIPE_PATH" ]; then
-    echo "Creating named pipe at $PIPE_PATH"
-    mkfifo "$PIPE_PATH"
-    # 赋予读写权限，确保 node 和 snapserver 都能访问
-    chmod 666 "$PIPE_PATH"
-fi
+echo "--- Starting PulseAudio (System Mode as Root) ---"
+pulseaudio --system -D \
+    --disallow-exit \
+    --disallow-module-loading=false \
+    --load="module-native-protocol-unix auth-anonymous=1 socket=/tmp/pulseaudio.socket" \
+    --log-target=stderr
 
-# --- 2. 配置 ALSA (Plexamp 的输出端) ---
-# 这段配置将欺骗 Plexamp，让它以为在向默认声卡播放，实际是写入 Pipe
-echo "Configuring ALSA to redirect audio to pipe..."
-cat > /etc/asound.conf <<EOF
-pcm.!default {
-    type file
-    file "$PIPE_PATH"
-    format "raw"
-    slave {
-        pcm null
-    }
-}
-EOF
+echo "Waiting for PulseAudio socket..."
+TIMEOUT=0
+while [ ! -S "$PULSE_SOCKET" ]; do
+    sleep 1
+    TIMEOUT=$((TIMEOUT+1))
+    if [ $TIMEOUT -gt 10 ]; then
+        echo "Error: PulseAudio failed to start."
+        exit 1
+    fi
+done
 
-# --- 3. 配置 Snapserver (Snapcast 的输入端) ---
-# 读取环境变量 SNAPCAST_NAME，如果未设置则默认为 "Plexamp"
+echo "--- Configuring Audio Loopback ---"
+pactl -s $PULSE_SERVER load-module module-pipe-sink file=/tmp/snapfifo sink_name=Snapcast-Plexamp format=s16le rate=44100
+pactl -s $PULSE_SERVER set-default-sink Snapcast-Plexamp
+pactl -s $PULSE_SERVER set-sink-volume Snapcast-Plexamp 100%
+
+echo "--- Generating Snapserver config ---"
 STREAM_NAME=${SNAPCAST_NAME:-Plexamp}
-
-echo "Configuring Snapserver source..."
-# 生成最小化配置文件
-# 格式: pipe://<path>?name=<name>&sampleformat=<rate:bits:channels>
-# Plexamp 默认输出通常是 44100Hz, 16bit, 2ch
 mkdir -p /etc/snapserver
-cat > /etc/snapserver/snapserver.conf <<EOF
-[stream]
-source = pipe://${PIPE_PATH}?name=${STREAM_NAME}&sampleformat=44100:16:2
-
+cat > /etc/snapserver.conf <<EOF
+[server]
+datadir = /var/lib/snapserver
 [http]
+enabled = true
 doc_root = /usr/share/snapserver/snapweb
+[tcp]
+enabled = true
+[stream]
+source = pipe:///tmp/snapfifo?name=${STREAM_NAME}&sampleformat=44100:16:2
 EOF
 
-# --- 4. 启动服务 ---
+echo "--- Starting Snapserver ---"
+snapserver -d -c /etc/snapserver.conf
 
-# A. 启动 Snapserver (后台运行)
-echo "Starting Snapserver..."
-snapserver &
-SNAP_PID=$!
-
-# 等待几秒确保 snapserver 启动
-sleep 2
-
-# B. 启动 Plexamp (前台运行，作为主进程)
-echo "Starting Plexamp..."
-# 确保在 /plexamp 目录下运行
+echo "--- Starting Plexamp Headless ---"
 cd /plexamp
-
-# 检查是否需要声明 Token (初次运行)
-if [ ! -z "$PLEXAMP_CLAIM_TOKEN" ]; then
-    echo "Claim token found, attempting to claim..."
-    # 注意：Plexamp 的 claim 逻辑通常在第一次运行也是自动的，
-    # 只要环境变量存在。这里只是打印提示。
-fi
-
-# 启动 Node 进程
-# 使用 exec 让 node 进程替代 shell 成为 PID 1 (或者作为前台主进程)
-node js/index.js &
-PLEX_PID=$!
-
-# --- 5. 进程守护 ---
-# 等待任一进程退出
-wait -n $SNAP_PID $PLEX_PID
-
-# 如果其中一个退出了，杀掉另一个并退出容器
-echo "One of the processes exited."
-kill $SNAP_PID $PLEX_PID 2>/dev/null
-exit 1
+export PULSE_SERVER=unix:$PULSE_SOCKET
+node js/index.js
