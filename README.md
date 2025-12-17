@@ -7,17 +7,18 @@ docker-compose 配置文件
 services:
   plexamp-cast:
     image: ghcr.io/juneix/plexamp-cast:latest
+    container_name: plexamp-cast
     network_mode: host
     restart: unless-stopped
-    privileged: true 
+    privileged: true
     environment:
       - TZ=Asia/Shanghai
       # 获取 Token: https://www.plex.tv/claim/ (有时效性)
       - PLEXAMP_CLAIM_TOKEN=claim-XXXXXXXXXX 
       # Plex 服务器中显示的播放器名称
-      - PLEXAMP_PLAYER_NAME=Plexamp-Docker
+      - PLEXAMP_PLAYER_NAME=Plexamp-Cast
       # Snapcast 客户端中显示的流名称
-      - SNAPCAST_NAME=Plexamp-Audio
+      - SNAPCAST_NAME=Plexamp-Cast
     volumes:
       # Plexamp 的数据配置持久化
       - ./plexamp-data:/root/.local/share/Plexamp
