@@ -65,32 +65,33 @@ if [ ! -f /etc/snapserver.conf ]; then
     echo "未找到配置文件，正在生成默认配置..."
     echo "Config not found, generating default..."
     
-    # 统一使用 PLEX_PLAYER 变量
+    # a.处理播放器名称
     # 如果用户未设置，默认为 "Plexamp"
     PLAYER_NAME=${PLEX_PLAYER:-Plexamp}
     
     echo "当前播放器名称 (Plexamp & Snapcast): ${PLAYER_NAME}"
+    echo "Current player name (Plexamp & Snapcast): ${PLAYER_NAME}"
     
-    # 构建基础音频源字符串
-    # name=${PLAYER_NAME} 确保 Snapcast 里的流名字就是这个
-    SOURCE_STR="pipe:///tmp/snapfifo?name=${PLAYER_NAME}&sampleformat=44100:16:2"
+    # b.构建基础音频源 (Pipe)
+    SOURCE_STR="pipe:///tmp/snapfifo?name=${PLAYER_NAME}&sampleformat=44100:16:2&codec=flac"
     
-    # 检查 Plex 控制变量 (HOST 和 TOKEN 是必须的)
+    # c.检查并启用控制脚本
     if [ -n "$PLEX_HOST" ] && [ -n "$PLEX_TOKEN" ]; then
-        echo "检测到 Plex API 凭证，正在启用双向控制..."
-        echo "Plex API credentials found, enabling control script..."
+        echo "检测到 X-Plex-Token，正在启用双向控制..."
+        echo "X-Plex-Token found, enabling control script..."
         
+        # 必须使用绝对路径，确保 Snapserver 能找到脚本
         SCRIPT_PATH="/usr/local/bin/plex_bridge.py"
         
-        # 拼接参数：Token、IP、播放器名称
-        # 统一使用 PLAYER_NAME，确保脚本控制的目标就是自己
+        # 拼接控制脚本所需参数：Token、IP、播放器名称等
         PARAMS="--token=${PLEX_TOKEN} --ip=${PLEX_HOST} --player=${PLAYER_NAME}"
         SOURCE_STR="${SOURCE_STR}&controlscript=${SCRIPT_PATH}&controlscriptparams=${PARAMS}"
     else
-        echo "未检测到 PLEX_TOKEN，仅启用音频传输，禁用控制功能。"
-        echo "PLEX_TOKEN not set. Audio only, control disabled."
+        echo "未检测到 X-Plex-Token，仅启用音频串流..."
+        echo "X-Plex-Token not set, only enable audio streaming..."
     fi
     
+    # d. 写入配置文件
     mkdir -p /etc/snapserver
     cat > /etc/snapserver.conf <<EOF
 [server]
