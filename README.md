@@ -1,11 +1,24 @@
-让你的 NAS、电视盒子（armbian）或任意 Linux 服务器变成家庭音乐系统的中控，可实现多房间同步播放（类似 AirPlay2 和 Roon）。
+
+# Plexamp-Cast 多房间播放
+
+<img width="2642" height="1004" alt="Plexamp-Cast" src="https://github.com/user-attachments/assets/67bd0832-7077-40dd-9304-1cabc22441bd" />
+
+## 1. 功能介绍
+让你的 NAS、电视盒子（armbian）或任意 Linux 服务器变成 Plexamp 家庭音乐系统的中控，可实现多房间同步播放（类似 AirPlay2 和 Roon）。
 - 基于 Plexamp Headless➕Snapcast
+- 借助 PlexAPI，可直接从 Snapcast 控制 Plexamp
 - 使用 Docker 一键部署，开箱即用
 - 自动识别 x86-64 和 arm64 架构
 - 暂不支持 arm32 设备
   - 玩客云推荐刷 Dietpi 系统，然后在 Dietpi-Software 应用商店里安装 Snapcast，接着打开 [Plex 官网](https://www.plex.tv/media-server-downloads/?cat=headless&plat=raspberry-pi#plex-plexamp)下载并安装 *Plexamp for Raspberry Pi* 即可（需要 Node.js 20 环境）
 
-docker-compose 配置文件
+## 2. 使用说明（后续会出视频教程）
+1️⃣ 浏览器打开 `http://NAS-IP:32500` 初始化 Plexamp Headless，后续可直接通过其他 Plexamp 电脑/手机客户端远程控制
+2️⃣ 作为多房间播放的设备，安装 Snapcast/Snap.Net 客户端，或者直接打开网页`http://NAS-IP:1780`即可
+3️⃣ 推荐连接有线音箱，如果是蓝牙音箱，需手动调节延迟。
+
+
+## 3. docker-compose 配置文件
 ```
 services:
   plexamp-cast:
