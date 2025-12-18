@@ -1,62 +1,95 @@
 # 工作流名称
-name: 云端构建并推送 Docker 镜像到 GHCR
+name: 定时构建 Docker 镜像
 
-# 触发条件：推送到 main 分支、打标签时执行；也可手动触发
+# --- 优化点 1: 修改触发条件 ---
+# 移除了 push 事件，防止每次修改文件立即触发
+# 改为 cron 定时任务 + 手动触发
 on:
-  push:
-    branches: [ main ]          # 推送到主分支时触发
-    tags: [ 'v*' ]              # 打版本标签（如v1.0.0）时触发
-  workflow_dispatch:            # 允许手动在 GitHub 页面触发
+  schedule:
+    - cron: '0 * * * *'             # 每小时的第 0 分钟执行一次 (UTC时间)
+  workflow_dispatch:                # 允许手动强制触发
 
-# 作业定义：在 Ubuntu 最新版虚拟机中运行
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
-      contents: read            # 仅读取仓库代码（最小权限）
-      packages: write           # 推送镜像到 GHCR（隐含 read 权限）
+      contents: read
+      packages: write
 
     steps:
-      # 步骤1：检出仓库代码（获取 Dockerfile 等文件）
+      # 1. 检出代码
       - name: 检出代码
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # --- 优化点: 获取完整历史，以便比对提交时间
 
-      # 步骤2：设置 Docker Buildx（增强构建能力，支持多平台、缓存）
+      # --- 优化点 2: 核心检查逻辑 ---
+      # 检查最近一次提交是否发生在过去 65 分钟内 (留 5 分钟缓冲)
+      # 如果是手动触发 (workflow_dispatch)，则忽略时间限制强制构建
+      - name: 检查代码是否有更新
+        id: check_changes
+        run: |
+          # 获取最新 commit 的时间戳 (Unix timestamp)
+          LAST_COMMIT_TIME=$(git log -1 --format=%ct)
+          # 获取当前时间戳
+          CURRENT_TIME=$(date +%s)
+          # 计算时间差 (秒)
+          DIFF=$((CURRENT_TIME - LAST_COMMIT_TIME))
+          
+          # 3900秒 = 65分钟 (覆盖每小时的周期 + 冗余)
+          if [ "$DIFF" -lt 3900 ] || [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "New commits found or manual trigger. Proceeding to build."
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "No updates in the last hour. Skipping build."
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          fi
+
+      # --- 优化点 3: 配置 QEMU 以支持多架构 (arm64) ---
+      # 因为 Plexamp 常运行在树莓派等设备，这步很重要
+      - name: 配置 QEMU
+        if: steps.check_changes.outputs.should_build == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      # 2. 设置 Docker Buildx
       - name: 配置 Docker Buildx
+        if: steps.check_changes.outputs.should_build == 'true'
         uses: docker/setup-buildx-action@v3
 
-      # 步骤3：登录 GitHub Container Registry（GHCR）
+      # 3. 登录 GHCR
       - name: 登录 GHCR
+        if: steps.check_changes.outputs.should_build == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}          # 自动填充你的 GitHub 用户名
-          password: ${{ secrets.GITHUB_TOKEN }} # GitHub 自动生成的令牌
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 步骤4：构建并推送 Docker 镜像（核心步骤）
+      # --- 优化点 4: 使用 Metadata Action 管理标签 ---
+      # 自动处理 latest 和 版本号，比手写逻辑更健壮
+      - name: 提取 Docker 元数据
+        if: steps.check_changes.outputs.should_build == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+
+      # 4. 构建并推送
       - name: 构建并推送镜像
+        if: steps.check_changes.outputs.should_build == 'true'
         uses: docker/build-push-action@v5
         with:
-          context: .                            # 构建上下文：仓库根目录
-          file: ./Dockerfile                    # 显式指定 Dockerfile 路径
-          push: true                            # 推送到 GHCR
-          pull: true                            # 拉取最新基础镜像
-          # 镜像标签：GitHub Actions 兼容的逻辑表达式
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/plexamp-cast:latest
-            ghcr.io/${{ github.repository_owner }}/plexamp-cast:${{ github.ref_name != '' && github.ref_name || github.sha }}
-          # 开启构建缓存（加速下次构建）
+          context: .
+          file: ./Dockerfile
+          push: true
+          pull: true
+          # 使用 meta 生成的标签和标签
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # --- 优化点: 开启多架构构建 ---
+          platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          # 可选：多平台构建（取消注释开启，适配amd64/arm64）
-          platforms: linux/amd64,linux/arm64/v8
-
-      # 可选：删除验证步骤（避免 compose 适配问题，如需保留可看下方说明）
-      # - name: 验证镜像（通过 docker-compose）
-      #   if: success()
-      #   run: |
-      #     sed -i '/plexamp-cast/ s|image: .*|image: ghcr.io/${{ github.repository_owner }}/plexamp-cast:latest|g' docker-compose.yml
-      #     docker-compose up -d
-      #     sleep 10
-      #     docker-compose ps
-      #     docker-compose down
