@@ -31,23 +31,18 @@ services:
     privileged: true
     environment:
       - TZ=Asia/Shanghai
-      # --- 统一播放器名称 ---
-      # Plexamp 和 Snapcast 显示的设备名称
-      - PLEX_PLAYER=Plexamp-Cast
-      # --- Plex 服务器认领 ---
-      # 首次运行时用于自动认领服务器 (有效期4分钟)
-      # 获取 Claim Token: https://www.plex.tv/claim/
+      # 获取 Claim Token: https://www.plex.tv/claim/ (有效期约 4 分钟)
       - PLEXAMP_CLAIM_TOKEN=claim-xxxxx
-      # --- Plex 控制设置 ---
-      # 直接用 Snapcast 控制 Plexamp 播放音乐
-      # Plex 服务器内网 IP
+      # Plexamp 和 Snapcast 显示的播放器名称
+      - PLEX_PLAYER=Plexamp-Cast
+      # Plex 局域网 IP
       - PLEX_HOST=10.1.1.x
-      # 获取 API Token: 浏览器登录 Plex -> 任意媒体 -> 查看 XML -> 链接末尾的 X-Plex-Token
+      # 获取 X-Plex-Token: 浏览器登录 Plex -> 任意媒体 -> 查看 XML -> 链接末尾
       - PLEX_TOKEN=xxxxx
     volumes:
       # Plexamp 数据 (保留登录凭证)
       - ./config:/root/.local/share/Plexamp
-      # Snapcast 数据 (保留分组、备注、音量)
+      # Snapcast 数据 (保留分组、备注等)
       - ./data:/var/lib/snapserver
       # 自定义 Snapserver 配置（老司机专用）
       # - ./snapserver.conf:/etc/snapserver.conf
