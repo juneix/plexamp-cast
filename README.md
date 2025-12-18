@@ -13,10 +13,12 @@
   - 玩客云推荐刷 Dietpi 系统，然后在 Dietpi-Software 应用商店里安装 Snapcast，接着打开 [Plex 官网](https://www.plex.tv/media-server-downloads/?cat=headless&plat=raspberry-pi#plex-plexamp)下载并安装 *Plexamp for Raspberry Pi* 即可（需要 Node.js 20 环境）
 
 ## 2. 使用说明（后续会出视频教程）
-1️⃣ 浏览器打开 `http://NAS-IP:32500` 初始化 Plexamp Headless，后续可直接通过其他 Plexamp 电脑/手机客户端远程控制
-2️⃣ 作为多房间播放的设备，安装 Snapcast/Snap.Net 客户端，或者直接打开网页`http://NAS-IP:1780`即可
-3️⃣ 推荐连接有线音箱，如果是蓝牙音箱，需手动调节延迟。
+1️⃣ 你必须先拥有一个 Plex 服务器，Plexamp 是 Plex 推出的专业音乐播放器。
+> 它们都是`免费`的，无需  Plex Pass 会员订阅！
 
+2️⃣ 浏览器打开 `http://NAS-IP:32500` 初始化 Plexamp Headless，后续可直接通过其他 Plexamp 电脑/手机客户端远程控制。  
+2️⃣ 作为多房间播放的设备（音箱），安装 Snapcast/Snap.Net 客户端，或者直接打开网页`http://NAS-IP:1780`即可。  
+3️⃣ 推荐连接有线音箱，如果是蓝牙音箱，需手动调节延迟。  
 
 ## 3. docker-compose 配置文件
 ```
