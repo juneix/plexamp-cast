@@ -1,13 +1,17 @@
-# 工作流名称
-name: 定时构建 Docker 镜像
+name: 自动构建与发布
 
-# --- 优化点 1: 修改触发条件 ---
-# 移除了 push 事件，防止每次修改文件立即触发
-# 改为 cron 定时任务 + 手动触发
 on:
+  # 1. 定时触发：每小时检查一次
   schedule:
-    - cron: '0 * * * *'             # 每小时的第 0 分钟执行一次 (UTC时间)
-  workflow_dispatch:                # 允许手动强制触发
+    - cron: '0 * * * *'
+  
+  # 2. 发布触发：当你在 GitHub 页面点击 "Publish release" 时触发
+  #    这比单纯的 push tags 更正式，适合你写版本公告
+  release:
+    types: [published]
+
+  # 3. 手动触发
+  workflow_dispatch:
 
 jobs:
   build-and-push:
@@ -17,79 +21,73 @@ jobs:
       packages: write
 
     steps:
-      # 1. 检出代码
       - name: 检出代码
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0            # --- 优化点: 获取完整历史，以便比对提交时间
+          fetch-depth: 0
 
-      # --- 优化点 2: 核心检查逻辑 ---
-      # 检查最近一次提交是否发生在过去 65 分钟内 (留 5 分钟缓冲)
-      # 如果是手动触发 (workflow_dispatch)，则忽略时间限制强制构建
-      - name: 检查代码是否有更新
-        id: check_changes
+      # --- 智能检查逻辑 ---
+      - name: 检查是否需要构建
+        id: check
         run: |
-          # 获取最新 commit 的时间戳 (Unix timestamp)
-          LAST_COMMIT_TIME=$(git log -1 --format=%ct)
-          # 获取当前时间戳
-          CURRENT_TIME=$(date +%s)
-          # 计算时间差 (秒)
-          DIFF=$((CURRENT_TIME - LAST_COMMIT_TIME))
+          # 默认为 true (发布新版本或手动触发时，必须构建)
+          echo "should_build=true" >> $GITHUB_OUTPUT
           
-          # 3900秒 = 65分钟 (覆盖每小时的周期 + 冗余)
-          if [ "$DIFF" -lt 3900 ] || [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "New commits found or manual trigger. Proceeding to build."
-            echo "should_build=true" >> $GITHUB_OUTPUT
-          else
-            echo "No updates in the last hour. Skipping build."
-            echo "should_build=false" >> $GITHUB_OUTPUT
+          # 只有在【定时任务】时，才检查代码是否有更新
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            LAST_COMMIT=$(git log -1 --format=%ct)
+            NOW=$(date +%s)
+            DIFF=$((NOW - LAST_COMMIT))
+            # 检查过去 65 分钟内是否有代码提交
+            if [ "$DIFF" -gt 3900 ]; then
+              echo "No changes detected in the last hour."
+              echo "should_build=false" >> $GITHUB_OUTPUT
+            fi
           fi
 
-      # --- 优化点 3: 配置 QEMU 以支持多架构 (arm64) ---
-      # 因为 Plexamp 常运行在树莓派等设备，这步很重要
-      - name: 配置 QEMU
-        if: steps.check_changes.outputs.should_build == 'true'
+      - name: 配置 QEMU (多架构支持)
+        if: steps.check.outputs.should_build == 'true'
         uses: docker/setup-qemu-action@v3
 
-      # 2. 设置 Docker Buildx
       - name: 配置 Docker Buildx
-        if: steps.check_changes.outputs.should_build == 'true'
+        if: steps.check.outputs.should_build == 'true'
         uses: docker/setup-buildx-action@v3
 
-      # 3. 登录 GHCR
       - name: 登录 GHCR
-        if: steps.check_changes.outputs.should_build == 'true'
+        if: steps.check.outputs.should_build == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # --- 优化点 4: 使用 Metadata Action 管理标签 ---
-      # 自动处理 latest 和 版本号，比手写逻辑更健壮
-      - name: 提取 Docker 元数据
-        if: steps.check_changes.outputs.should_build == 'true'
+      # --- 核心：标签管理 (已按你的要求简化) ---
+      - name: 生成 Docker 标签
+        if: steps.check.outputs.should_build == 'true'
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
+          # 这里的逻辑是自动化的：
+          # 1. 如果是定时任务 (schedule)，只会生成 :latest
+          # 2. 如果是发布版本 (release v1.0)，会生成 :1.0 和 :latest
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,format=short
+            type=raw,value=latest
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
-      # 4. 构建并推送
-      - name: 构建并推送镜像
-        if: steps.check_changes.outputs.should_build == 'true'
+      - name: 构建并推送
+        if: steps.check.outputs.should_build == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
           push: true
           pull: true
-          # 使用 meta 生成的标签和标签
+          # 引用上面生成的标签
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # --- 优化点: 开启多架构构建 ---
+          # 自动构建 amd64 和 arm64，生成统一的 Manifest
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
