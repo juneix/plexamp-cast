@@ -34,6 +34,6 @@ services:
       - ./config:/root/.local/share/Plexamp
       # Snapcast 数据 (保留分组、备注、音量)
       - ./data:/var/lib/snapserver
-      # (可选) 自定义 Snapserver 配置
+      # 自定义 Snapserver 配置（老司机专用）
       # - ./snapserver.conf:/etc/snapserver.conf
 ```
