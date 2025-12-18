@@ -24,7 +24,7 @@
 ```
 services:
   plexamp-cast:
-    image: ghcr.io/juneix/plexamp-cast:latest
+    image: ghcr.io/juneix/plexamp-cast
     container_name: plexamp-cast
     network_mode: host
     restart: unless-stopped
