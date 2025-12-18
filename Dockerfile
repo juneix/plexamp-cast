@@ -30,6 +30,7 @@ RUN set -ex && \
     wget -O snapserver.deb "$SNAP_URL" && \
     apt-get install -y --no-install-recommends ./snapserver.deb && \
     rm snapserver.deb && \
+    rm -f /etc/snapserver.conf && \
     # 4. 安装 Snapweb
     WEB_DEB="snapweb_${SNAPWEB_VERSION}-1_all.deb" && \
     WEB_URL="https://github.com/snapcast/snapweb/releases/download/v${SNAPWEB_VERSION}/${WEB_DEB}" && \
