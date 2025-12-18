@@ -85,6 +85,7 @@ if [ ! -f /etc/snapserver.conf ]; then
     cat > /etc/snapserver.conf <<EOF
 [server]
 datadir = /var/lib/snapserver
+user = root
 [http]
 enabled = true
 doc_root = /usr/share/snapweb
