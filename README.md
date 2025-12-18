@@ -1,8 +1,11 @@
-
-让电视盒子（armbian）变成家庭音乐系统的中控，基于 plexamp➕snapcast。
+让你的 NAS、电视盒子（armbian）或任意 Linux 服务器变成家庭音乐系统的中控，可实现多房间同步播放（类似 AirPlay2 和 Roon）。
+- 基于 Plexamp Headless➕Snapcast
+- 使用 Docker 一键部署，开箱即用
+- 自动识别 x86-64 和 arm64 架构
+- 暂不支持 arm32 设备
+  - 玩客云推荐刷 Dietpi 系统，然后在 Dietpi-Software 应用商店里安装 Snapcast，接着打开 [Plex 官网](https://www.plex.tv/media-server-downloads/?cat=headless&plat=raspberry-pi#plex-plexamp)下载并安装 *Plexamp for Raspberry Pi* 即可（需要 Node.js 20 环境）
 
 docker-compose 配置文件
-
 ```
 services:
   plexamp-cast:
@@ -20,8 +23,8 @@ services:
       # Snapcast 客户端中显示的流名称
       - SNAPCAST_NAME=Plexamp-Cast
     volumes:
-      # Plexamp 的数据配置持久化
-      - ./plexamp-data:/root/.local/share/Plexamp
-      # 如果你想自定义 snapserver 配置，也可以挂载，但通常 run.sh 自动生成的够用了
-      # - ./snapserver.conf:/etc/snapserver/snapserver.conf
+      # Plexamp 配置数据持久化（账户登录信息等）
+      - ./config:/root/.local/share/Plexamp/Settings
+      # 想修改 Snapserver 配置文件，请先下载或创建 snapserver.conf
+      # - ./snapserver.conf:/etc/snapserver.conf
 ```
