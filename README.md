@@ -25,6 +25,9 @@ services:
     volumes:
       # Plexamp 配置数据持久化（账户登录信息等）
       - ./config:/root/.local/share/Plexamp/Settings
-      # 想修改 Snapserver 配置文件，请先下载或创建 snapserver.conf
+      # Snapcast 配置数据持久化（分组、备注信息等）
+      - ./config:/root/.local/share/Plexamp/Settings
+      - ./data:/var/lib/snapserver
+      # 如果想修改 Snapserver 配置，请先创建 snapserver.conf
       # - ./snapserver.conf:/etc/snapserver.conf
 ```
