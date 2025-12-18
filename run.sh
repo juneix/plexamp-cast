@@ -83,8 +83,13 @@ if [ ! -f /etc/snapserver.conf ]; then
     
     mkdir -p /etc/snapserver
     cat > /etc/snapserver.conf <<EOF
+[server]
+datadir = /var/lib/snapserver
 [http]
+enabled = true
 doc_root = /usr/share/snapweb
+[tcp]
+enabled = true
 [stream]
 # 这里的 source 必须与上面的 module-pipe-sink file 路径一致
 source = pipe:///tmp/snapfifo?name=${STREAM_NAME}&sampleformat=44100:16:2
