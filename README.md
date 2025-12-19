@@ -21,10 +21,12 @@
 3️⃣ 推荐连接有线音箱，如果是蓝牙音箱，需手动调节延迟。  
 
 ## 3. docker-compose 配置文件
+
+⚡️ 已配置毫秒镜像加速
 ```
 services:
   plexamp-cast:
-    image: ghcr.io/juneix/plexamp-cast
+    image: ghcr.1ms.run/ghcr.io/juneix/plexamp-cast
     container_name: plexamp-cast
     network_mode: host
     restart: unless-stopped
