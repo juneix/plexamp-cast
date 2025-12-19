@@ -12,7 +12,7 @@ This project is a Docker solution that seamlessly integrates **Plexamp (Headless
 It is designed to run on **any Linux device** (x86_64 or arm64), making it perfect for:
 * **Raspberry Pi** (Zero 2 W, 3B, 4, 5)
 * **Mini PCs** (Intel NUC, Dell OptiPlex Micro, etc.)
-* **Repurposed Android TV Boxes** (running Armbian)
+* **Android TV Boxes** (running Armbian)
 
 It plays music via Plexamp and acts as a sync source for your multi-room audio system via Snapcast.
 
