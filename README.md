@@ -1,6 +1,8 @@
 
 # Plexamp-Cast  [[中文说明](https://github.com/juneix/plexamp-cast/blob/main/README-CN.md)]
 
+**Turn your Raspberry Pi, Mini PC, or old TV box into a powerful Home Music Hub.**
+
 <img width="2642" height="1004" alt="Plexamp-Cast" src="https://github.com/user-attachments/assets/67bd0832-7077-40dd-9304-1cabc22441bd" />
 
 ## Overview
