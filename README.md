@@ -1,5 +1,5 @@
 
-# Plexamp-Cast 多房间播放 [English](https://github.com/juneix/plexamp-cast/blob/main/README-EN.md)
+# Plexamp-Cast 多房间播放 [[English.Ver](https://github.com/juneix/plexamp-cast/blob/main/README-EN.md)]
 
 <img width="2642" height="1004" alt="Plexamp-Cast" src="https://github.com/user-attachments/assets/67bd0832-7077-40dd-9304-1cabc22441bd" />
 
