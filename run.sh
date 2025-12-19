@@ -18,7 +18,7 @@ if [ -d "$PLEXAMP_DATA" ]; then
     rm -rf "$PLEXAMP_DATA/Logs"
     rm -rf "$PLEXAMP_DATA/Code Cache"
     rm -rf "$PLEXAMP_DATA/GPUCache"
-    echo "清理完成。登录凭证已保留。"
+    echo "清理完成，登录凭证已保留。"
     echo "Done. Auth data preserved."
 else
     echo "检测到首次运行（无现有数据）。"
