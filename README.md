@@ -22,7 +22,7 @@
 
 ## 3. docker-compose 配置文件
 
-⚡️ 已配置毫秒镜像加速
+⚡️ 已配置毫秒镜像加速，中国大陆地区专用
 ```
 services:
   plexamp-cast:
