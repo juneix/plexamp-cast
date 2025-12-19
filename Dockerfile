@@ -40,7 +40,7 @@ RUN set -ex && \
     rm plexamp.tar.bz2 && \
     # 5. 安装 PlexAPI (最小化安装)
     pip3 install plexapi --no-cache-dir --break-system-packages && \
-    # 6. 下载 Plex Bridge 脚本
+    # 6. 下载 PlexBridge 脚本
     wget -O /usr/local/bin/plex_bridge.py "https://raw.githubusercontent.com/snapcast/snapcast/develop/server/etc/plug-ins/plex_bridge.py" && \
     chmod +x /usr/local/bin/plex_bridge.py && \
     # 7. 配置 PulseAudio
