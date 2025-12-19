@@ -6,7 +6,7 @@
 ## 1. 功能介绍
 让你的 NAS、电视盒子（armbian）或任意 Linux 服务器变成 Plexamp 家庭音乐系统的中控，可实现多房间同步播放（类似 AirPlay2 和 Roon）。
 - 基于 Plexamp Headless➕Snapcast  
-~~借助 PlexAPI，可直接从 Snapcast 控制 Plexamp~~(调试中）
+- ~~借助 PlexAPI，可直接从 Snapcast 控制 Plexamp~~ (调试中）
 - 使用 Docker 一键部署，开箱即用
 - 自动识别 x86-64 和 arm64 架构
 - 暂不支持 arm32 设备
