@@ -22,12 +22,11 @@
 
 ## 3. docker-compose 配置文件
 
-⚡️ 已配置毫秒镜像加速，中国大陆地区专用
 ```yaml
 services:
   plexamp-cast:
-    # 原版镜像请换成 ghcr.io/juneix/nas-music-kit
-    image: ghcr.1ms.run/ghcr.io/juneix/plexamp-cast
+    # 毫秒镜像加速请换成 ghcr.1ms.run/ghcr.io/juneix/plexamp-cast
+    image: ghcr.io/juneix/plexamp-cast
     container_name: plexamp-cast
     network_mode: host
     restart: unless-stopped
