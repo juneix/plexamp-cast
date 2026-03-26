@@ -1,93 +1,65 @@
-name: 自动构建与发布
+name: Build and Push Docker Image
 
 on:
-  # 1. 定时触发：每小时检查一次
-  schedule:
-    - cron: '0 * * * *'
-  
-  # 2. 发布触发：当你在 GitHub 页面点击 "Publish release" 时触发
-  #    这比单纯的 push tags 更正式，适合你写版本公告
-  release:
-    types: [published]
-
-  # 3. 手动触发
+  push:
+    tags: [ 'v*' ]
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# 添加权限声明，确保可以推送到 GHCR
+permissions:
+  packages: write
+  contents: read
+
 jobs:
-  build-and-push:
+  docker:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      # 拉取当前仓库代码
+      - name: Checkout
+        uses: actions/checkout@v6
 
-      # --- 智能检查逻辑 ---
-      - name: 检查是否需要构建
-        id: check
-        run: |
-          # 默认为 true (发布新版本或手动触发时，必须构建)
-          echo "should_build=true" >> $GITHUB_OUTPUT
-          
-          # 只有在【定时任务】时，才检查代码是否有更新
-          if [ "${{ github.event_name }}" == "schedule" ]; then
-            LAST_COMMIT=$(git log -1 --format=%ct)
-            NOW=$(date +%s)
-            DIFF=$((NOW - LAST_COMMIT))
-            # 检查过去 65 分钟内是否有代码提交
-            if [ "$DIFF" -gt 3900 ]; then
-              echo "No changes detected in the last hour."
-              echo "should_build=false" >> $GITHUB_OUTPUT
-            fi
-          fi
-
-      - name: 配置 QEMU (多架构支持)
-        if: steps.check.outputs.should_build == 'true'
+      # 启用跨架构模拟，支持构建 arm64 镜像
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: 配置 Docker Buildx
-        if: steps.check.outputs.should_build == 'true'
+      # 初始化 Docker Buildx 多平台构建环境
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 登录 GHCR
-        if: steps.check.outputs.should_build == 'true'
+      # 登录 GHCR，使用 GitHub 内置令牌推送镜像
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # --- 核心：标签管理 (已按你的要求简化) ---
-      - name: 生成 Docker 标签
-        if: steps.check.outputs.should_build == 'true'
-        id: meta
-        uses: docker/metadata-action@v5
+      # 登录 Docker Hub，使用仓库 secrets 中的账号信息
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
         with:
-          images: ghcr.io/${{ github.repository }}
-          # 这里的逻辑是自动化的：
-          # 1. 如果是定时任务 (schedule)，只会生成 :latest
-          # 2. 如果是发布版本 (release v1.0)，会生成 :1.0 和 :latest
-          tags: |
-            type=raw,value=latest
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: 构建并推送
-        if: steps.check.outputs.should_build == 'true'
-        uses: docker/build-push-action@v5
+      # 将仓库拥有者转成小写，避免 GHCR 命名不兼容
+      - name: Lowercase the repo name
+        id: prep
+        run: echo "repo_lower=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_OUTPUT
+
+      # 构建并推送 amd64/arm64 两个平台镜像
+      - name: Build and push
+        uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile
-          push: true
-          pull: true
-          # 引用上面生成的标签
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # 自动构建 amd64 和 arm64，生成统一的 Manifest
           platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ steps.prep.outputs.repo_lower }}/plexamp-cast:latest
+            ${{ secrets.DOCKER_USER }}/plexamp-cast:latest
+            ghcr.io/${{ steps.prep.outputs.repo_lower }}/plexamp-cast:${{ github.ref_name }}
+            ${{ secrets.DOCKER_USER }}/plexamp-cast:${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
