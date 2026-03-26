@@ -4,6 +4,7 @@ FROM node:20-bookworm-slim
 ENV PLEXAMP_VERSION="4.12.4"
 ENV SNAPCAST_VERSION="0.35.0"
 ENV SNAPWEB_VERSION="0.9.3"
+ENV LOG_LANG="zh"
 ENV DEBIAN_FRONTEND=noninteractive
 
 # --- 合并执行 ---
@@ -38,7 +39,7 @@ RUN set -ex && \
     wget -O plexamp.tar.bz2 "https://plexamp.plex.tv/headless/Plexamp-Linux-headless-v${PLEXAMP_VERSION}.tar.bz2" && \
     tar -xjf plexamp.tar.bz2 -C / && \
     rm plexamp.tar.bz2 && \
-    # 5. 安装 PlexAPI (最小化安装)
+    # 5. 安装 PlexAPI 接口库
     pip3 install plexapi --no-cache-dir --break-system-packages && \
     # 6. 下载 PlexBridge 脚本
     wget -O /usr/local/bin/plex_bridge.py "https://raw.githubusercontent.com/snapcast/snapcast/develop/server/etc/plug-ins/plex_bridge.py" && \
@@ -46,8 +47,8 @@ RUN set -ex && \
     # 7. 配置 PulseAudio
     sed -i 's/; autospawn = yes/autospawn = no/g' /etc/pulse/client.conf && \
     sed -i 's/; allow-autospawn-for-root = no/allow-autospawn-for-root = yes/g' /etc/pulse/client.conf && \
-    # 8. 清理工作
-    apt-get purge -y --auto-remove wget bzip2 && \
+    # 8. 清理工作环境
+    apt-get purge -y --auto-remove wget bzip2 python3-pip && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
